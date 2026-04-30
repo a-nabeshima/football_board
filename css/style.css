@@ -1,0 +1,195 @@
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+
+body{background:#111;overflow:hidden;width:100vw;height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+canvas#canvas{display:block;position:fixed;top:0;left:0;touch-action:none}
+
+/* ── Toolbar ── */
+#toolbar{
+  position:fixed;bottom:0;left:0;right:0;height:56px;
+  background:rgba(16,16,16,0.96);backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 6px;gap:2px;
+  border-top:1px solid rgba(255,255,255,0.1);z-index:100;
+}
+.tb-btn{
+  min-width:44px;height:44px;border:none;background:transparent;
+  color:#999;border-radius:8px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:19px;transition:background .15s,color .15s;
+  padding:0 4px;flex-shrink:0;
+}
+.tb-btn:hover{background:rgba(255,255,255,0.1)}
+.tb-btn.active{background:rgba(255,255,255,0.18);color:#fff}
+.tb-btn.playing{color:#4caf50}
+.tb-sep{width:1px;height:28px;background:rgba(255,255,255,0.12);margin:0 3px;flex-shrink:0}
+.tb-spacer{flex:1}
+
+/* ── Draw sub-toolbar ── */
+#draw-toolbar{
+  position:fixed;bottom:56px;left:0;right:0;height:48px;
+  background:rgba(12,12,12,0.97);backdrop-filter:blur(12px);
+  display:none;align-items:center;padding:0 8px;gap:5px;
+  border-top:1px solid rgba(255,255,255,0.07);z-index:99;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+}
+#draw-toolbar.visible{display:flex}
+#draw-toolbar::-webkit-scrollbar{display:none}
+
+.color-swatch{
+  width:26px;height:26px;border-radius:50%;border:2px solid transparent;
+  cursor:pointer;transition:transform .1s,border-color .1s;flex-shrink:0;
+}
+.color-swatch.active{border-color:#fff;transform:scale(1.25)}
+
+.ds-btn,.dw-btn{
+  height:30px;padding:0 9px;border:1px solid rgba(255,255,255,0.18);
+  background:transparent;color:#bbb;border-radius:6px;cursor:pointer;
+  font-size:12px;white-space:nowrap;flex-shrink:0;transition:background .12s;
+}
+.ds-btn.active,.dw-btn.active{background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.45)}
+
+/* ── Frame panel ── */
+#frame-panel{
+  position:fixed;bottom:56px;left:0;right:0;height:150px;
+  background:rgba(12,12,12,0.97);backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,0.1);display:none;z-index:99;
+}
+#frame-panel.visible{display:block}
+#frame-list{
+  display:flex;padding:8px 10px;gap:8px;
+  overflow-x:auto;height:100%;align-items:center;
+}
+#frame-list::-webkit-scrollbar{height:3px}
+#frame-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:2px}
+
+.frame-item{
+  position:relative;flex-shrink:0;width:88px;height:128px;
+  border-radius:8px;border:2px solid rgba(255,255,255,0.15);
+  cursor:pointer;overflow:hidden;background:#1a1a1a;transition:border-color .15s;
+}
+.frame-item:hover{border-color:rgba(255,255,255,0.35)}
+.frame-item.active{border-color:#4caf50}
+.frame-item canvas{width:100%;height:calc(100% - 20px);display:block}
+.frame-del{
+  position:absolute;top:3px;right:3px;width:20px;height:20px;
+  background:rgba(220,50,50,0.85);border:none;border-radius:50%;
+  color:#fff;font-size:13px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.frame-label{
+  position:absolute;bottom:0;left:0;right:0;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,0.7);font-size:11px;
+  background:rgba(0,0,0,0.4);
+}
+.frame-add{
+  flex-shrink:0;width:72px;height:108px;
+  border:2px dashed rgba(255,255,255,0.2);border-radius:8px;
+  background:transparent;color:rgba(255,255,255,0.3);
+  font-size:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s;
+}
+.frame-add:hover{border-color:rgba(255,255,255,0.45);color:rgba(255,255,255,0.6)}
+
+/* ── Menu panel ── */
+#menu-panel{
+  position:fixed;top:0;right:0;width:272px;max-height:100dvh;
+  background:rgba(16,16,16,0.98);backdrop-filter:blur(16px);
+  transform:translateX(105%);transition:transform .25s cubic-bezier(.4,0,.2,1);
+  z-index:200;overflow-y:auto;border-left:1px solid rgba(255,255,255,0.1);
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+#menu-panel.open{transform:translateX(0)}
+#menu-panel::-webkit-scrollbar{width:3px}
+#menu-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+
+.menu-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.1);
+  position:sticky;top:0;background:rgba(16,16,16,0.98);z-index:1;
+}
+.menu-hdr h2{color:#fff;font-size:15px;font-weight:600}
+.menu-hdr-close{
+  width:30px;height:30px;background:rgba(255,255,255,0.08);
+  border:none;color:#aaa;font-size:16px;border-radius:6px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.menu-sec{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.menu-sec-ttl{
+  color:#777;font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:9px;
+}
+.opt-grp{display:flex;gap:6px}
+.opt-btn{
+  flex:1;height:34px;border:1px solid rgba(255,255,255,0.18);background:transparent;
+  color:#bbb;border-radius:8px;cursor:pointer;font-size:12.5px;transition:background .12s;
+}
+.opt-btn.active{background:rgba(76,175,80,0.25);border-color:#4caf50;color:#66bb6a}
+
+.menu-sel{
+  width:100%;height:34px;background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.18);color:#ccc;border-radius:8px;
+  padding:0 8px;font-size:12.5px;cursor:pointer;margin-bottom:7px;
+  -webkit-appearance:none;appearance:none;
+}
+.menu-btn{
+  width:100%;height:38px;border:1px solid rgba(255,255,255,0.13);
+  background:rgba(255,255,255,0.04);color:#bbb;border-radius:8px;
+  cursor:pointer;font-size:12.5px;margin-bottom:5px;transition:background .12s;
+}
+.menu-btn:last-child{margin-bottom:0}
+.menu-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.menu-btn.primary{background:rgba(76,175,80,0.18);border-color:#4caf50;color:#66bb6a}
+.menu-btn.danger{background:rgba(244,67,54,0.12);border-color:#ef5350;color:#ef9a9a}
+
+/* speed slider */
+.menu-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.menu-row label{color:#888;font-size:12px;white-space:nowrap;min-width:50px}
+.menu-row input[type=range]{flex:1;accent-color:#4caf50}
+.menu-row span{color:#bbb;font-size:12px;min-width:30px;text-align:right}
+
+/* ── Overlay ── */
+#overlay{position:fixed;inset:0;z-index:150;display:none;background:rgba(0,0,0,0.25)}
+#overlay.active{display:block}
+
+/* ── Zoom reset ── */
+#zoom-reset{
+  position:fixed;top:10px;right:10px;width:36px;height:36px;
+  background:rgba(16,16,16,0.8);border:1px solid rgba(255,255,255,0.15);
+  color:#aaa;border-radius:8px;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;opacity:0;transition:opacity .2s;pointer-events:none;
+}
+#zoom-reset.visible{opacity:1;pointer-events:auto}
+
+/* ── Play indicator ── */
+#play-ind{
+  position:fixed;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.75);color:#fff;padding:5px 14px;
+  border-radius:20px;font-size:12.5px;display:none;z-index:150;
+  pointer-events:none;
+}
+#play-ind.visible{display:block}
+
+/* ── Player dialog ── */
+#player-dlg{
+  position:fixed;inset:0;background:rgba(0,0,0,0.65);
+  display:none;align-items:center;justify-content:center;z-index:300;
+}
+#player-dlg.open{display:flex}
+.dlg-box{
+  background:#1c1c1c;border-radius:14px;padding:20px;width:260px;
+  border:1px solid rgba(255,255,255,0.12);
+}
+.dlg-title{color:#fff;font-size:15px;font-weight:600;margin-bottom:14px}
+.dlg-field{margin-bottom:10px}
+.dlg-field label{display:block;color:#777;font-size:11.5px;margin-bottom:4px}
+.dlg-field input{
+  width:100%;height:36px;background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.18);color:#fff;border-radius:8px;
+  padding:0 10px;font-size:14px;outline:none;
+}
+.dlg-field input:focus{border-color:#4caf50}
+.dlg-btns{display:flex;gap:8px;margin-top:14px}
+.dlg-btns button{flex:1;height:40px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:500}
+.btn-cancel{background:transparent;border:1px solid rgba(255,255,255,0.18);color:#aaa}
+.btn-ok{background:#4caf50;border:none;color:#fff}
