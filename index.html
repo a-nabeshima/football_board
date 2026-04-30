@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#111111">
+  <title>作戦ボード</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <button id="btn-move"  class="tb-btn" title="移動 (ドラッグ)">✋</button>
+  <button id="btn-draw"  class="tb-btn" title="描画">✏️</button>
+  <button id="btn-erase" class="tb-btn" title="消去">🗑</button>
+  <div class="tb-sep"></div>
+  <button id="btn-save-frame" class="tb-btn" title="フレーム保存">📷</button>
+  <button id="btn-play"  class="tb-btn" title="再生 / 停止">▶</button>
+  <button id="btn-frames" class="tb-btn" title="フレーム一覧">🎞</button>
+  <div class="tb-spacer"></div>
+  <button id="btn-menu"  class="tb-btn" title="メニュー">☰</button>
+</div>
+
+<!-- ── Draw sub-toolbar ───────────────────────────────────────────────────── -->
+<div id="draw-toolbar">
+  <!-- 6 colors -->
+  <button class="color-swatch" data-color="#ffffff" style="background:#fff"    title="白"></button>
+  <button class="color-swatch" data-color="#ffeb3b" style="background:#ffeb3b" title="黄"></button>
+  <button class="color-swatch" data-color="#f44336" style="background:#f44336" title="赤"></button>
+  <button class="color-swatch" data-color="#00bcd4" style="background:#00bcd4" title="水色"></button>
+  <button class="color-swatch" data-color="#76ff03" style="background:#76ff03" title="黄緑"></button>
+  <button class="color-swatch" data-color="#ff9800" style="background:#ff9800" title="橙"></button>
+  <div class="tb-sep"></div>
+  <!-- line style -->
+  <button class="ds-btn" data-style="solid"  title="実線">─</button>
+  <button class="ds-btn" data-style="dotted" title="点線">···</button>
+  <button class="ds-btn" data-style="dashed" title="鎖線">─·─</button>
+  <div class="tb-sep"></div>
+  <!-- line width -->
+  <button class="dw-btn" data-width="thin"   title="細">細</button>
+  <button class="dw-btn" data-width="medium" title="中">中</button>
+  <button class="dw-btn" data-width="thick"  title="太">太</button>
+</div>
+
+<!-- ── Frame panel ────────────────────────────────────────────────────────── -->
+<div id="frame-panel">
+  <div id="frame-list"></div>
+</div>
+
+<!-- ── Menu panel ─────────────────────────────────────────────────────────── -->
+<div id="menu-panel">
+  <div class="menu-hdr">
+    <h2>⚽ 作戦ボード</h2>
+    <button class="menu-hdr-close" id="menu-close">✕</button>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">フィールドサイズ</div>
+    <div class="opt-grp">
+      <button class="opt-btn active" id="btn-large">50 × 68 m</button>
+      <button class="opt-btn"        id="btn-small">40 × 58 m</button>
+    </div>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">表示方向</div>
+    <div class="opt-grp">
+      <button class="opt-btn active" id="btn-portrait">縦向き</button>
+      <button class="opt-btn"        id="btn-landscape">横向き</button>
+    </div>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">フォーメーション — チーム A（赤）</div>
+    <select class="menu-sel" id="sel-fa">
+      <option value="3-3-1">3-3-1</option>
+      <option value="2-4-1">2-4-1</option>
+      <option value="2-3-2">2-3-2</option>
+      <option value="3-2-2">3-2-2</option>
+    </select>
+    <div class="menu-sec-ttl" style="margin-top:8px">フォーメーション — チーム B（青）</div>
+    <select class="menu-sel" id="sel-fb">
+      <option value="3-3-1">3-3-1</option>
+      <option value="2-4-1">2-4-1</option>
+      <option value="2-3-2">2-3-2</option>
+      <option value="3-2-2">3-2-2</option>
+    </select>
+    <button class="menu-btn primary" id="btn-apply-form">フォーメーション適用・再配置</button>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">アニメーション速度</div>
+    <div class="menu-row">
+      <label>移動時間</label>
+      <input type="range" id="speed-slider" min="0.5" max="4" step="0.5" value="1.5">
+      <span id="speed-label">1.5s</span>
+    </div>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">操作</div>
+    <button class="menu-btn"        id="btn-reset-ball">ボールをセンターに戻す</button>
+    <button class="menu-btn danger" id="btn-clear-draw">描画をすべて消去</button>
+    <button class="menu-btn danger" id="btn-clear-frames">フレームをすべて削除</button>
+  </div>
+
+  <div class="menu-sec">
+    <div class="menu-sec-ttl">データ</div>
+    <button class="menu-btn primary" id="btn-save">ブラウザに保存</button>
+    <button class="menu-btn"         id="btn-load">保存データを読み込む</button>
+  </div>
+
+  <div class="menu-sec" style="color:#555;font-size:11px;line-height:1.7;padding-bottom:20px">
+    <strong style="color:#666">操作ヒント</strong><br>
+    プレイヤー長押し → 番号・名前編集<br>
+    ✏️ 描画モードで線を描く<br>
+    🗑 消去モードでドラッグ消去<br>
+    📷 でフレーム保存 → ▶ で再生<br>
+    ピンチ / ホイールでズーム
+  </div>
+</div>
+
+<!-- ── Overlay ─────────────────────────────────────────────────────────────── -->
+<div id="overlay"></div>
+
+<!-- ── Floating zoom reset ────────────────────────────────────────────────── -->
+<button id="zoom-reset" title="表示をリセット">⌂</button>
+
+<!-- ── Play indicator ─────────────────────────────────────────────────────── -->
+<div id="play-ind">▶ 再生中…</div>
+
+<!-- ── Player edit dialog ──────────────────────────────────────────────────── -->
+<div id="player-dlg">
+  <div class="dlg-box">
+    <div class="dlg-title">プレイヤー編集</div>
+    <div class="dlg-field">
+      <label>番号</label>
+      <input type="number" id="edit-num" min="1" max="99" inputmode="numeric">
+    </div>
+    <div class="dlg-field">
+      <label>名前（省略可）</label>
+      <input type="text" id="edit-name" placeholder="名前を入力" maxlength="12">
+    </div>
+    <div class="dlg-btns">
+      <button class="btn-cancel" id="btn-dlg-cancel">キャンセル</button>
+      <button class="btn-ok"     id="btn-dlg-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/field.js"></script>
+<script src="js/player.js"></script>
+<script src="js/drawing.js"></script>
+<script src="js/animation.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
