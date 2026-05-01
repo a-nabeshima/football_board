@@ -24,8 +24,8 @@ function drawField(ctx, fw, fl) {
   ctx.fillStyle = '#2e7d32';
   ctx.fillRect(0, 0, fw, fl);
 
-  // Alternating stripe pattern (every 8m)
-  const stripeW = 8;
+  // Alternating stripe pattern (every 4m)
+  const stripeW = 4;
   for (let i = 0; i * stripeW < fl; i++) {
     if (i % 2 === 0) {
       ctx.fillStyle = 'rgba(0,0,0,0.055)';

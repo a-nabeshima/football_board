@@ -34,13 +34,15 @@
   function resetView() {
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const BOTPAD = 64;
+    const TOPPAD = 64; // toolbar (56px) + gap
     const PAD    = 14;
     const { fw, fl } = fieldDims();
-    const s = Math.min((W - PAD * 2) / fw, (H - BOTPAD - PAD) / fl);
+    const availH = H - TOPPAD - PAD;
+    const availW = W - PAD * 2;
+    const s = Math.min(availW / fw, availH / fl);
     view.scale   = s;
     view.offsetX = (W - fw * s) / 2;
-    view.offsetY = PAD + ((H - BOTPAD - PAD) - fl * s) / 2;
+    view.offsetY = TOPPAD + (availH - fl * s) / 2;
     document.getElementById('zoom-reset').classList.remove('visible');
   }
 
@@ -80,7 +82,18 @@
     ctx.translate(view.offsetX, view.offsetY);
     ctx.scale(view.scale, view.scale);
 
-    drawField(ctx, fw, fl);
+    // Field: in landscape mode apply portrait→landscape matrix so goals appear left/right
+    ctx.save();
+    if (state.orientation === 'landscape') {
+      const sz = FIELD_SIZES[state.fieldSize];
+      // Transform: new_x = portrait_y, new_y = W - portrait_x  →  matrix(0,-1,1,0,0,W)
+      ctx.transform(0, -1, 1, 0, 0, sz.width);
+      drawField(ctx, sz.width, sz.length);
+    } else {
+      drawField(ctx, fw, fl);
+    }
+    ctx.restore();
+
     drawDrawings(ctx, s.drawings);
     if (s.curDraw) _drawPath(ctx, s.curDraw);
     drawPlayers(ctx, s.players, s.ball);
@@ -169,13 +182,15 @@
     }
 
     if (state.tool === 'erase') {
-      eraseNear(state.drawings, mp.x, mp.y, 1.5);
+      pushHistory();
+      eraseNear(state.drawings, mp.x, mp.y, 2.0);
       render(); return;
     }
 
     // move mode
     const hit = findAt(mp.x, mp.y);
     if (hit) {
+      pushHistory();
       dragTarget = hit;
       if (hit.type === 'player') {
         editTarget = hit.obj;
@@ -221,7 +236,7 @@
     }
 
     if (state.tool === 'erase') {
-      eraseNear(state.drawings, mp.x, mp.y, 1.5);
+      eraseNear(state.drawings, mp.x, mp.y, 2.0);
       render(); return;
     }
 
@@ -246,7 +261,10 @@
     clearLP();
 
     if (state.tool === 'draw' && state.curDraw) {
-      if (state.curDraw.points.length >= 2) state.drawings.push(state.curDraw);
+      if (state.curDraw.points.length >= 2) {
+        pushHistory();
+        state.drawings.push(state.curDraw);
+      }
       state.curDraw = null;
       render(); return;
     }
@@ -339,7 +357,15 @@
     mCtx.save();
     mCtx.translate(ox, oy);
     mCtx.scale(s, s);
-    drawField(mCtx, fw, fl);
+    mCtx.save();
+    if (state.orientation === 'landscape') {
+      const sz = FIELD_SIZES[state.fieldSize];
+      mCtx.transform(0, -1, 1, 0, 0, sz.width);
+      drawField(mCtx, sz.width, sz.length);
+    } else {
+      drawField(mCtx, fw, fl);
+    }
+    mCtx.restore();
     drawDrawings(mCtx, frame.drawings);
     drawPlayers(mCtx, frame.players, frame.ball);
     mCtx.restore();
@@ -418,6 +444,7 @@
   }
 
   function rebuildTeams() {
+    pushHistory();
     const { fw, fl } = fieldDims();
     applyFormation(state.players.filter(p => p.team === 'A'), state.formationA, fw, fl);
     applyFormation(state.players.filter(p => p.team === 'B'), state.formationB, fw, fl);
@@ -492,6 +519,59 @@
       });
       return state.players.length > 0;
     } catch (_) { return false; }
+  }
+
+  // ── History (Undo / Redo) ─────────────────────────────────────────────────
+  const _undoStack = [];
+  const _redoStack = [];
+  const UNDO_LIMIT = 50;
+
+  function _snapshot() {
+    return {
+      players:  deepClone(state.players),
+      ball:     { ...state.ball },
+      drawings: deepClone(state.drawings),
+    };
+  }
+
+  function pushHistory() {
+    _undoStack.push(_snapshot());
+    if (_undoStack.length > UNDO_LIMIT) _undoStack.shift();
+    _redoStack.length = 0;
+    _syncUndoUI();
+  }
+
+  function clearHistory() {
+    _undoStack.length = 0;
+    _redoStack.length = 0;
+    _syncUndoUI();
+  }
+
+  function undo() {
+    if (!_undoStack.length) { showToast('これ以上元に戻せません'); return; }
+    _redoStack.push(_snapshot());
+    const prev = _undoStack.pop();
+    state.players  = prev.players;
+    state.ball     = prev.ball;
+    state.drawings = prev.drawings;
+    render(); saveToStorage(); _syncUndoUI();
+  }
+
+  function redo() {
+    if (!_redoStack.length) { showToast('やり直す操作がありません'); return; }
+    _undoStack.push(_snapshot());
+    const next = _redoStack.pop();
+    state.players  = next.players;
+    state.ball     = next.ball;
+    state.drawings = next.drawings;
+    render(); saveToStorage(); _syncUndoUI();
+  }
+
+  function _syncUndoUI() {
+    const u = document.getElementById('btn-undo');
+    const r = document.getElementById('btn-redo');
+    if (u) u.disabled = _undoStack.length === 0;
+    if (r) r.disabled = _redoStack.length === 0;
   }
 
   // ── Toast ──────────────────────────────────────────────────────────────────
@@ -673,6 +753,15 @@ B2: (12, 20)
     document.getElementById('zoom-reset').onclick = () => { resetView(); render(); };
     document.getElementById('overlay'   ).onclick = closeMenu;
     document.getElementById('menu-close').onclick = closeMenu;
+    document.getElementById('btn-undo'  ).onclick = undo;
+    document.getElementById('btn-redo'  ).onclick = redo;
+
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+        if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+      }
+    });
 
     // Field size
     document.getElementById('btn-large').onclick = () => {
@@ -691,12 +780,14 @@ B2: (12, 20)
       if (state.orientation === 'portrait') return;
       transformAllElements(state.orientation, 'portrait');
       state.orientation = 'portrait';
+      clearHistory(); // coordinates changed system
       syncOriBtns(); resetView(); render(); saveToStorage();
     };
     document.getElementById('btn-landscape').onclick = () => {
       if (state.orientation === 'landscape') return;
       transformAllElements(state.orientation, 'landscape');
       state.orientation = 'landscape';
+      clearHistory(); // coordinates changed system
       syncOriBtns(); resetView(); render(); saveToStorage();
     };
 
@@ -734,7 +825,7 @@ B2: (12, 20)
       setTimeout(() => { b.textContent = 'ブラウザに保存'; }, 1800);
     };
     document.getElementById('btn-load').onclick = () => {
-      if (loadFromStorage()) { syncUI(); render(); renderFrameList(); }
+      if (loadFromStorage()) { clearHistory(); syncUI(); render(); renderFrameList(); }
     };
 
     // Animation speed
